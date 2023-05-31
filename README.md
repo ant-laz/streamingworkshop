@@ -1,6 +1,24 @@
 # Apache Beam streaming pipeline workshop
 Step by step development of a streaming pipeline in Python using Apace Beam.
 
+In this workshop we will develop a streaming pipeline, showing how to get data in JSON 
+format and parse it (using Beam schemas), how to aggregate it and write out to files.
+
+We will apply complex analytics to the stream, calculating properties of a session for 
+different users, grouping together events of the same session by using windowing.
+
+As a bonus point, we will explore how to use the parameters of a DoFn to inspect the 
+properties of the window, adding information about the window and the trigger, to 
+understand the concepts of windowing, triggering and accumulation mode.
+
+## Choosing the correct code branch
+
+The "main" branch has the complete code for the streaming pipeline.
+
+The "workshop" branch has code with gaps that are to be completed live in the workshop.
+
+Checkout the "workshop" branch and challenge yourself ! 
+
 ## Setting up your environment
 
 ```sh
