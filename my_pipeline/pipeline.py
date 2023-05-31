@@ -71,7 +71,8 @@ beam.coders.registry.register_coder(TaxiPoint, beam.coders.RowCoder)
 class CreateTaxiPoint(beam.DoFn):
 
     def process(self, element):
-        yield TaxiPoint(**element)
+        #TODO - complete this DoFn
+        pass
 
 ########################################################################################
 # TASK 2 : Write a DoFn "AddTimestampDoFn"
@@ -79,8 +80,8 @@ class CreateTaxiPoint(beam.DoFn):
 class AddTimestampDoFn(beam.DoFn):
 
    def process(self, element):
-       element_timestamp: float = parser.parse(element.timestamp).timestamp()
-       yield TimestampedValue(element, element_timestamp)
+       #TODO - complete this DoFn
+       pass
 
 ########################################################################################
 #  TASK 3 : Write a PTransform "AddKeysToTaxiRides"
@@ -89,10 +90,8 @@ class AddTimestampDoFn(beam.DoFn):
 class AddKeysToTaxiRides(beam.PTransform):
  
     def expand(self, pcoll):
-        keys: PCollection[tuple(str,TaxiPoint)] = pcoll | "addkeys" >> beam.WithKeys(
-            lambda e: e.ride_id
-            )
-        return keys
+        #TODO - complete this PTransform
+        pass
 
 ########################################################################################
 #  TASK 4 : Write a PTransform "TaxiSessioning"
@@ -101,29 +100,8 @@ class AddKeysToTaxiRides(beam.PTransform):
 class TaxiSessioning(beam.PTransform):
  
     def expand(self, pcoll):
-        windowed: PCollection[tuple(str,TaxiPoint)] = pcoll | beam.WindowInto(
-            # WINDOW SET UP STEP 1 - Window Function
-            # Divide a PCollection into session windows.
-            # This is applied on a per-key basis.
-            # Each session must be separated by a time gap of at least 1 minute
-            # Why ? 8 minute was guessed to be a good avg length between NYC taxi rides
-            # Why not lower? Connectivity issues cause gaps in the same taxi ride.
-            windowfn=Sessions(480.0),
-            # WINDOW SET UP STEP 2 - Window Trigger
-            # Fire exactly once when the watermark passes the end of the window.
-            # Why ? Beacuse we only want to have 1 set of results per session window.
-            trigger=AfterWatermark(),
-            # WINDOW SET UP STEP 3 - Window accumulation mode
-            # Required because we adding a trigger.
-            # Controls what to do with data when a trigger fires multiple times.
-            # The selected trigger AfterWatermark() will only fire 1 pane of results.
-            # Setting accumulation mode to the default of DISCARDING.
-            accumulation_mode=AccumulationMode.DISCARDING,
-            # WINDOW SET UP STEP 4 - Window allowed latness
-            # If element arrives outside of its assigned window, it's late.
-            allowed_lateness=Duration(seconds=0)
-            )
-        return windowed
+        #TODO - complete this PTransform
+        pass
 
 #######################################################################################
 # TASK 5 : Write a DoFn "BusinessRulesDoFn" for taxi ride statistics
@@ -149,57 +127,18 @@ class BusinessRulesDoFn(beam.DoFn):
                 element,
                 window=beam.DoFn.WindowParam,
                 pane_info=beam.DoFn.PaneInfoParam):
-        # v_iter is an iterator, so it is consumed when it is traversed
-        k, v_iter = element
-
-        min_timestamp = None
-        max_timestamp = None
-        n = 0
-        init_status = "NA"
-        end_status = "NA"
-
-        # Find the min and max timestamp in all the events in this session.
-        # Then find out the status corresponding to those timestamps
-        # (sessions should start with pickup and end with dropoff)
-        for v in v_iter:
-            if not min_timestamp:
-                min_timestamp = self._parse_timestamp(v.timestamp)
-            if not max_timestamp:
-                max_timestamp = self._parse_timestamp(v.timestamp)
-            event_timestamp = self._parse_timestamp(v.timestamp)
-            if event_timestamp <= min_timestamp:
-                min_timestamp = event_timestamp
-                init_status = v.ride_status
-            if event_timestamp >= max_timestamp:
-                max_timestamp = event_timestamp
-                end_status = v.ride_status
-            n += 1
-
-        # Duration of this session
-        duration = (max_timestamp - min_timestamp).total_seconds()
-
-        if pane_info.timing == 0:
-            timing = "EARLY"
-        elif pane_info.timing == 1:
-            timing = "ON TIME"
-        elif pane_info.timing == 2:
-            timing = "LATE"
-        else:
-            timing = "UNKNOWN"
-
-        # Output record, including some info about the window bounds and trigger
-        # (useful to diagnose how windowing is working)
+        #TODO - complete this DoFn
         r = {
-            'ride_id': k,
-            'duration': duration,
-            'min_timestamp': min_timestamp.isoformat(),
-            'max_timestamp': max_timestamp.isoformat(),
-            'count': n,
-            'init_status': init_status,
-            'end_status': end_status,
-            'trigger': timing,  # early, on time (watermark) or late
-            'window_start': window.start.to_rfc3339(),  # iso format for window start
-            'window_end': window.end.to_rfc3339()  # iso format timestamp of window end
+            'ride_id': None,
+            'duration': None,
+            'min_timestamp': None,
+            'max_timestamp': None,
+            'count': None,
+            'init_status': None,
+            'end_status': None,
+            'trigger': None,
+            'window_start': None,
+            'window_end': None
         }
 
         yield r
@@ -223,13 +162,18 @@ class TaxiStatsTransform(beam.PTransform):
     def expand(self, pcoll):
         
         ridedata: PCollection[dict] = pcoll |"parse json strings">> beam.Map(json.loads)
+        # TASK 1 : Write a DoFn "CreateTaxiPoint"
         schema: PCollection[TaxiPoint] = ridedata | "apply schemas" >> beam.ParDo(
             CreateTaxiPoint()).with_output_types(TaxiPoint)
+        # TASK 2 : Write a DoFn "AddTimestampDoFn"
         tstamp: PCollection[TaxiPoint] = schema | "timestamping" >> beam.ParDo(
             AddTimestampDoFn())
+        #  TASK 3 : Write a PTransform "AddKeysToTaxiRides"
         key: PCollection[tuple(str,TaxiPoint)] = tstamp | "key" >> AddKeysToTaxiRides()
+        #  TASK 4 : Write a PTransform "TaxiSessioning"
         win: PCollection[tuple(str,TaxiPoint)] = key | "sessions" >> TaxiSessioning()
         grp: PCollection[tuple(str,list(TaxiPoint))] = win | "group">> beam.GroupByKey()
+        # TASK 5 : Write a DoFn "BusinessRulesDoFn" for taxi ride statistics
         stats: PCollection[dict] = grp | "stats" >> beam.ParDo(BusinessRulesDoFn())
         return stats
 
