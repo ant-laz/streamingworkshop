@@ -19,31 +19,58 @@ The "workshop" branch has code with gaps that are to be completed live in the wo
 
 Checkout the "workshop" branch and challenge yourself ! 
 
+```
+git checkout workshop
+```
+
 ## Setting up your environment
 
-```sh
-# install python version 3.10.0 which is required for this lab
-# one option is to use pyenv to help with this
-# please use whather python installation method you prefer
-pyenv shell 3.10.0
+### Python 3.10
 
-# create a virtual environment
+This is a hands on workshop, please come ready with Python 3.10 installed: 
+ * use the Python official [downloads](https://www.python.org/downloads/)
+ * use pyenv
+ * follow the instructions for Google [Cloud](https://cloud.google.com/python/docs/setup)
+ * ...or whatever you prefer ! 
+
+### Development Environment
+
+This is a hands on workshop, please come ready with a development environment:
+ * VSCode
+ * PyCharm
+ * GCP cloud shell 
+ * GCP cloud shell editor
+ * GCP workstation
+ * ...or whatever you prefer ! 
+
+
+### Python Virtual Env
+
+With *python* pointing at python 3.10 run the following.
+
+Create a virtual environment
+```
 python -m venv venv
-
-# Activate the virtual environment.
+```
+Activate the virtual environment.
+```
 source venv/bin/activate
 ```
 
 While activated, your `python` and `pip` commands will point to the virtual environment,
 so any changes or install dependencies are self-contained.
 
-Execute form the root of this repo:
+### Initialize pipeline code
 
+Execute form the root of this repo to initialze the pipeline code.
+
+First, update pip before installing dependencies, it's always a good idea to do this.
 ```sh
-# It's always a good idea to update pip before installing dependencies.
 pip install -U pip
+```
 
-# Install the project as a local package, this installs all the dependencies as well.
+Install the project as a local package, this installs all the dependencies as well.
+```
 pip install -e .
 ```
 

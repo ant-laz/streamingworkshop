@@ -116,12 +116,26 @@ class BusinessRulesDoFn(beam.DoFn):
         """
 
     def __init__(self):
+        # Create metrics to count occurernce of timestamp types
+        # These are not visible with DirectRunner only DataflowRunner
+        # See these docs for details
+        # https://beam.apache.org/documentation/programming-guide/#metrics
         self.correct_timestamps = beam.metrics.Metrics.counter(
             self.__class__, 
             'correct_timestamps')
         self.wrong_timestamps = beam.metrics.Metrics.counter(
             self.__class__, 
             'wrong_timestamps')
+
+    def _parse_timestamp(self, s):
+        # Default value in case of error
+        d = datetime(1979, 2, 4, 0, 0, 0)
+        try:
+            d = parser.parse(s)
+            self.correct_timestamps.inc()
+        except ValueError:
+            self.wrong_timestamps.inc()
+        return d        
 
     def process(self, 
                 element,
@@ -142,16 +156,6 @@ class BusinessRulesDoFn(beam.DoFn):
         }
 
         yield r
-
-    def _parse_timestamp(self, s):
-        # Default value in case of error
-        d = datetime(1979, 2, 4, 0, 0, 0)
-        try:
-            d = parser.parse(s)
-            self.correct_timestamps.inc()
-        except ValueError:
-            self.wrong_timestamps.inc()
-        return d
 
 ########################################################################################
 # TASK 6 : PTransform to represent the core pipeline logic (excludes input + output)
