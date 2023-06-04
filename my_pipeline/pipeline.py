@@ -71,7 +71,7 @@ beam.coders.registry.register_coder(TaxiPoint, beam.coders.RowCoder)
 class CreateTaxiPoint(beam.DoFn):
 
     def process(self, element):
-        # TODO - complete DoFn
+        #TODO - complete this DoFn
         pass
 
 ########################################################################################
@@ -80,7 +80,7 @@ class CreateTaxiPoint(beam.DoFn):
 class AddTimestampDoFn(beam.DoFn):
 
    def process(self, element):
-       # TODO - complete DoFn
+       #TODO - complete this DoFn
        pass
 
 ########################################################################################
@@ -90,7 +90,7 @@ class AddTimestampDoFn(beam.DoFn):
 class AddKeysToTaxiRides(beam.PTransform):
  
     def expand(self, pcoll):
-        # TODO - complete PTransform
+        #TODO - complete this PTransform
         pass
 
 ########################################################################################
@@ -100,7 +100,7 @@ class AddKeysToTaxiRides(beam.PTransform):
 class TaxiSessioning(beam.PTransform):
  
     def expand(self, pcoll):
-        # TODO - complete PTransform
+        #TODO - complete this PTransform
         pass
 
 #######################################################################################
@@ -141,11 +141,7 @@ class BusinessRulesDoFn(beam.DoFn):
                 element,
                 window=beam.DoFn.WindowParam,
                 pane_info=beam.DoFn.PaneInfoParam):
-        pass
-        # TODO - complete DoFn
-
-        # Output record, including some info about the window bounds and trigger
-        # (useful to diagnose how windowing is working)
+        #TODO - complete this DoFn
         r = {
             'ride_id': None,
             'duration': None,
@@ -154,9 +150,9 @@ class BusinessRulesDoFn(beam.DoFn):
             'count': None,
             'init_status': None,
             'end_status': None,
-            'trigger': None,  # early, on time (watermark) or late
-            'window_start': None,  # iso format for window start
-            'window_end': None  # iso format timestamp of window end
+            'trigger': None,
+            'window_start': None,
+            'window_end': None
         }
 
         yield r
