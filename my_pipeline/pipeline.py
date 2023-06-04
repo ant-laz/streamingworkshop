@@ -138,6 +138,10 @@ class BusinessRulesDoFn(beam.DoFn):
         """
 
     def __init__(self):
+        # Create metrics to count occurernce of timestamp types
+        # These are not visible with DirectRunner only DataflowRunner
+        # See these docs for details
+        # https://beam.apache.org/documentation/programming-guide/#metrics
         self.correct_timestamps = beam.metrics.Metrics.counter(
             self.__class__, 
             'correct_timestamps')
@@ -145,12 +149,23 @@ class BusinessRulesDoFn(beam.DoFn):
             self.__class__, 
             'wrong_timestamps')
 
+    def _parse_timestamp(self, s):
+        # Default value in case of error
+        d = datetime(1979, 2, 4, 0, 0, 0)
+        try:
+            d = parser.parse(s)
+            self.correct_timestamps.inc()
+        except ValueError:
+            self.wrong_timestamps.inc()
+        return d        
+
     def process(self, 
                 element,
                 window=beam.DoFn.WindowParam,
                 pane_info=beam.DoFn.PaneInfoParam):
-        # v_iter is an iterator, so it is consumed when it is traversed
-        k, v_iter = element
+        # element is a tuple ==> PCollection[tuple(str,list(TaxiPoint))]
+        # unpack the tuple into separate variables
+        ride_id, list_of_taxi_point = element
 
         min_timestamp = None
         max_timestamp = None
@@ -161,23 +176,28 @@ class BusinessRulesDoFn(beam.DoFn):
         # Find the min and max timestamp in all the events in this session.
         # Then find out the status corresponding to those timestamps
         # (sessions should start with pickup and end with dropoff)
-        for v in v_iter:
+        for taxi_point in list_of_taxi_point:
+            event_timestamp = self._parse_timestamp(taxi_point.timestamp)
+            ride_status = taxi_point.ride_status
             if not min_timestamp:
-                min_timestamp = self._parse_timestamp(v.timestamp)
+                min_timestamp = event_timestamp
             if not max_timestamp:
-                max_timestamp = self._parse_timestamp(v.timestamp)
-            event_timestamp = self._parse_timestamp(v.timestamp)
+                max_timestamp = event_timestamp
             if event_timestamp <= min_timestamp:
                 min_timestamp = event_timestamp
-                init_status = v.ride_status
+                init_status = ride_status
             if event_timestamp >= max_timestamp:
                 max_timestamp = event_timestamp
-                end_status = v.ride_status
+                end_status = ride_status
             n += 1
 
         # Duration of this session
         duration = (max_timestamp - min_timestamp).total_seconds()
 
+        # A pane is the aggregated results of each window.
+        # In pipeline step "sessions" the session window was given a trigger config.
+        # Beam uses this trigger to determine when to emit/fire panes.
+        # We use the pane_info additional param in our DoFn to inspect pane firing.
         if pane_info.timing == 0:
             timing = "EARLY"
         elif pane_info.timing == 1:
@@ -190,7 +210,7 @@ class BusinessRulesDoFn(beam.DoFn):
         # Output record, including some info about the window bounds and trigger
         # (useful to diagnose how windowing is working)
         r = {
-            'ride_id': k,
+            'ride_id': ride_id,
             'duration': duration,
             'min_timestamp': min_timestamp.isoformat(),
             'max_timestamp': max_timestamp.isoformat(),
@@ -203,16 +223,6 @@ class BusinessRulesDoFn(beam.DoFn):
         }
 
         yield r
-
-    def _parse_timestamp(self, s):
-        # Default value in case of error
-        d = datetime(1979, 2, 4, 0, 0, 0)
-        try:
-            d = parser.parse(s)
-            self.correct_timestamps.inc()
-        except ValueError:
-            self.wrong_timestamps.inc()
-        return d
 
 ########################################################################################
 # TASK 6 : PTransform to represent the core pipeline logic (excludes input + output)
