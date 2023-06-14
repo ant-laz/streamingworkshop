@@ -66,7 +66,7 @@ class TaxiPoint(typing.NamedTuple):
 beam.coders.registry.register_coder(TaxiPoint, beam.coders.RowCoder)
 
 ########################################################################################
-# TASK 1 : Write a DoFn "CreateTaxiPoint"
+# TASK 1 : A DoFn that converts from python dict to a Beam Schema
 ########################################################################################
 class CreateTaxiPoint(beam.DoFn):
 
@@ -157,47 +157,48 @@ class BusinessRulesDoFn(beam.DoFn):
             self.correct_timestamps.inc()
         except ValueError:
             self.wrong_timestamps.inc()
-        return d        
+        return d   
 
-    def process(self, 
-                element,
-                window=beam.DoFn.WindowParam,
-                pane_info=beam.DoFn.PaneInfoParam):
-        # element is a tuple ==> PCollection[tuple(str,list(TaxiPoint))]
-        # unpack the tuple into separate variables
-        ride_id, list_of_taxi_point = element
-
-        min_timestamp = None
-        max_timestamp = None
-        n = 0
-        init_status = "NA"
-        end_status = "NA"
-
-        # Find the min and max timestamp in all the events in this session.
-        # Then find out the status corresponding to those timestamps
-        # (sessions should start with pickup and end with dropoff)
-        for taxi_point in list_of_taxi_point:
+    def taxi_point_analyzer(self, points: list[TaxiPoint]) -> dict:
+        info = {'min_timestamp' : None,
+                'max_timestamp' : None,
+                'init_status' : "NA",
+                'end_status' : "NA",
+                'count' : 0,                     
+                'duration': 0}
+        # Find start time & status. Find end time & status. Calculate stats.
+        for taxi_point in points:
             event_timestamp = self._parse_timestamp(taxi_point.timestamp)
             ride_status = taxi_point.ride_status
-            if not min_timestamp:
-                min_timestamp = event_timestamp
-            if not max_timestamp:
-                max_timestamp = event_timestamp
-            if event_timestamp <= min_timestamp:
-                min_timestamp = event_timestamp
-                init_status = ride_status
-            if event_timestamp >= max_timestamp:
-                max_timestamp = event_timestamp
-                end_status = ride_status
-            n += 1
+            if not info["min_timestamp"]:
+                info["min_timestamp"] = event_timestamp
+            if not info["max_timestamp"]:
+                info["max_timestamp"] = event_timestamp
+            if event_timestamp <= info["min_timestamp"]:
+                info["min_timestamp"] = event_timestamp
+                info["init_status"] = ride_status
+            if event_timestamp >= info["max_timestamp"]:
+                info["max_timestamp"] = event_timestamp
+                info["end_status"] = ride_status
+            info["count"] += 1
+        info["duration"] = (info["max_timestamp"]-info["min_timestamp"]).total_seconds()
+        info["min_timestamp"] = info["min_timestamp"].isoformat()
+        info["max_timestamp"] = info["max_timestamp"].isoformat()
+        return info
 
-        # Duration of this session
-        duration = (max_timestamp - min_timestamp).total_seconds()
+    
+    def window_analzyer(self, window: beam.DoFn.WindowParam) -> dict:
+        return   {
+            'window_start': window.start.to_rfc3339(),  # rfc3339 is an iso formater 
+            'window_end': window.end.to_rfc3339()       
+        }
 
+    def pane_analzyer(self, pane_info: beam.DoFn.PaneInfoParam) -> dict:
         # A pane is the aggregated results of each window.
         # In pipeline step "sessions" the session window was given a trigger config.
         # Beam uses this trigger to determine when to emit/fire panes.
         # We use the pane_info additional param in our DoFn to inspect pane firing.
+        timing = "N/A"
         if pane_info.timing == 0:
             timing = "EARLY"
         elif pane_info.timing == 1:
@@ -205,24 +206,24 @@ class BusinessRulesDoFn(beam.DoFn):
         elif pane_info.timing == 2:
             timing = "LATE"
         else:
-            timing = "UNKNOWN"
+            timing = "UNKNOWN" 
+        return {'trigger': timing}  # early, on time (watermark) or late            
 
-        # Output record, including some info about the window bounds and trigger
-        # (useful to diagnose how windowing is working)
-        r = {
-            'ride_id': ride_id,
-            'duration': duration,
-            'min_timestamp': min_timestamp.isoformat(),
-            'max_timestamp': max_timestamp.isoformat(),
-            'count': n,
-            'init_status': init_status,
-            'end_status': end_status,
-            'trigger': timing,  # early, on time (watermark) or late
-            'window_start': window.start.to_rfc3339(),  # iso format for window start
-            'window_end': window.end.to_rfc3339()  # iso format timestamp of window end
-        }
+    def process(self, 
+                element,
+                window=beam.DoFn.WindowParam,
+                pane_info=beam.DoFn.PaneInfoParam):
+        # element is a tuple ==> PCollection[tuple(str,list(TaxiPoint))]
+        ride_id, list_of_taxi_point = element
+        rideinfo: dict = {'ride_id': ride_id,}
 
-        yield r
+        pointinfo: dict  = self.taxi_point_analyzer(list_of_taxi_point)
+
+        windowinfo: dict = self.window_analzyer(window)
+
+        paneinfo: dict = self.pane_analzyer(pane_info)
+
+        yield rideinfo | pointinfo | windowinfo | paneinfo
 
 ########################################################################################
 # TASK 6 : PTransform to represent the core pipeline logic (excludes input + output)
