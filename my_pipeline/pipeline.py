@@ -79,8 +79,8 @@ class CreateTaxiPoint(beam.DoFn):
 class AddTimestampDoFn(beam.DoFn):
 
    def process(self, element):
-       element_timestamp: float = parser.parse(element.timestamp).timestamp()
-       yield TimestampedValue(element, element_timestamp)
+       # TODO - complete DoFn
+       pass
 
 ########################################################################################
 #  TASK 3 : Write a PTransform "AddKeysToTaxiRides"
@@ -89,10 +89,8 @@ class AddTimestampDoFn(beam.DoFn):
 class AddKeysToTaxiRides(beam.PTransform):
  
     def expand(self, pcoll):
-        keys: PCollection[tuple(str,TaxiPoint)] = pcoll | "addkeys" >> beam.WithKeys(
-            lambda e: e.ride_id
-            )
-        return keys
+        # TODO - complete DoFn
+        pass
 
 ########################################################################################
 #  TASK 4 : Write a PTransform "TaxiSessioning"
@@ -101,29 +99,8 @@ class AddKeysToTaxiRides(beam.PTransform):
 class TaxiSessioning(beam.PTransform):
  
     def expand(self, pcoll):
-        windowed: PCollection[tuple(str,TaxiPoint)] = pcoll | beam.WindowInto(
-            # WINDOW SET UP STEP 1 - Window Function
-            # Divide a PCollection into session windows.
-            # This is applied on a per-key basis.
-            # Each session must be separated by a time gap of at least 1 minute
-            # Why ? 8 minute was guessed to be a good avg length between NYC taxi rides
-            # Why not lower? Connectivity issues cause gaps in the same taxi ride.
-            windowfn=Sessions(480.0),
-            # WINDOW SET UP STEP 2 - Window Trigger
-            # Fire exactly once when the watermark passes the end of the window.
-            # Why ? Beacuse we only want to have 1 set of results per session window.
-            trigger=AfterWatermark(),
-            # WINDOW SET UP STEP 3 - Window accumulation mode
-            # Required because we adding a trigger.
-            # Controls what to do with data when a trigger fires multiple times.
-            # The selected trigger AfterWatermark() will only fire 1 pane of results.
-            # Setting accumulation mode to the default of DISCARDING.
-            accumulation_mode=AccumulationMode.DISCARDING,
-            # WINDOW SET UP STEP 4 - Window allowed latness
-            # If element arrives outside of its assigned window, it's late.
-            allowed_lateness=Duration(seconds=0)
-            )
-        return windowed
+        # TODO complete PTransform
+        pass
 
 #######################################################################################
 # TASK 5 : Write a DoFn "BusinessRulesDoFn" for taxi ride statistics
@@ -167,23 +144,7 @@ class BusinessRulesDoFn(beam.DoFn):
                 'count' : 0,                     
                 'duration': 0}
         # Find start time & status. Find end time & status. Calculate stats.
-        for taxi_point in points:
-            event_timestamp = self._parse_timestamp(taxi_point.timestamp)
-            ride_status = taxi_point.ride_status
-            if not info["min_timestamp"]:
-                info["min_timestamp"] = event_timestamp
-            if not info["max_timestamp"]:
-                info["max_timestamp"] = event_timestamp
-            if event_timestamp <= info["min_timestamp"]:
-                info["min_timestamp"] = event_timestamp
-                info["init_status"] = ride_status
-            if event_timestamp >= info["max_timestamp"]:
-                info["max_timestamp"] = event_timestamp
-                info["end_status"] = ride_status
-            info["count"] += 1
-        info["duration"] = (info["max_timestamp"]-info["min_timestamp"]).total_seconds()
-        info["min_timestamp"] = info["min_timestamp"].isoformat()
-        info["max_timestamp"] = info["max_timestamp"].isoformat()
+        # TODO - complete method
         return info
 
     
@@ -199,14 +160,7 @@ class BusinessRulesDoFn(beam.DoFn):
         # Beam uses this trigger to determine when to emit/fire panes.
         # We use the pane_info additional param in our DoFn to inspect pane firing.
         timing = "N/A"
-        if pane_info.timing == 0:
-            timing = "EARLY"
-        elif pane_info.timing == 1:
-            timing = "ON TIME"
-        elif pane_info.timing == 2:
-            timing = "LATE"
-        else:
-            timing = "UNKNOWN" 
+        # TODO - complete method
         return {'trigger': timing}  # early, on time (watermark) or late            
 
     def process(self, 
