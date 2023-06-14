@@ -66,7 +66,7 @@ class TaxiPoint(typing.NamedTuple):
 beam.coders.registry.register_coder(TaxiPoint, beam.coders.RowCoder)
 
 ########################################################################################
-# TASK 1 : Write a DoFn "CreateTaxiPoint"
+# TASK 1 : A DoFn that converts from python dict to a Beam Schema
 ########################################################################################
 class CreateTaxiPoint(beam.DoFn):
 
@@ -135,27 +135,51 @@ class BusinessRulesDoFn(beam.DoFn):
             self.correct_timestamps.inc()
         except ValueError:
             self.wrong_timestamps.inc()
-        return d        
+        return d   
+
+    def taxi_point_analyzer(self, points: list[TaxiPoint]) -> dict:
+        info = {'min_timestamp' : None,
+                'max_timestamp' : None,
+                'init_status' : "NA",
+                'end_status' : "NA",
+                'count' : 0,                     
+                'duration': 0}
+        # Find start time & status. Find end time & status. Calculate stats.
+        # TODO - complete this method
+        return info
+
+    
+    def window_analzyer(self, window: beam.DoFn.WindowParam) -> dict:
+        # TODO - complete this method
+        return   {
+            'window_start': None,  
+            'window_end': None      
+        }
+
+    def pane_analzyer(self, pane_info: beam.DoFn.PaneInfoParam) -> dict:
+        # A pane is the aggregated results of each window.
+        # In pipeline step "sessions" the session window was given a trigger config.
+        # Beam uses this trigger to determine when to emit/fire panes.
+        # We use the pane_info additional param in our DoFn to inspect pane firing.
+        timing = "N/A"
+        # TODO - complete this method 
+        return {'trigger': timing}  # early, on time (watermark) or late            
 
     def process(self, 
                 element,
                 window=beam.DoFn.WindowParam,
                 pane_info=beam.DoFn.PaneInfoParam):
-        #TODO - complete this DoFn
-        r = {
-            'ride_id': None,
-            'duration': None,
-            'min_timestamp': None,
-            'max_timestamp': None,
-            'count': None,
-            'init_status': None,
-            'end_status': None,
-            'trigger': None,
-            'window_start': None,
-            'window_end': None
-        }
+        # element is a tuple ==> PCollection[tuple(str,list(TaxiPoint))]
+        ride_id, list_of_taxi_point = element
+        rideinfo: dict = {'ride_id': ride_id,}
 
-        yield r
+        pointinfo: dict  = self.taxi_point_analyzer(list_of_taxi_point)
+
+        windowinfo: dict = self.window_analzyer(window)
+
+        paneinfo: dict = self.pane_analzyer(pane_info)
+
+        yield rideinfo | pointinfo | windowinfo | paneinfo
 
 ########################################################################################
 # TASK 6 : PTransform to represent the core pipeline logic (excludes input + output)
