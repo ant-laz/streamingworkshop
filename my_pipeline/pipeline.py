@@ -71,7 +71,8 @@ beam.coders.registry.register_coder(TaxiPoint, beam.coders.RowCoder)
 class CreateTaxiPoint(beam.DoFn):
 
     def process(self, element):
-        yield TaxiPoint(**element)
+        #TODO - complete this DoFn
+        pass
 
 ########################################################################################
 # TASK 2 : Write a DoFn "AddTimestampDoFn"
@@ -149,9 +150,10 @@ class BusinessRulesDoFn(beam.DoFn):
 
     
     def window_analzyer(self, window: beam.DoFn.WindowParam) -> dict:
+        # TODO - complete this method
         return   {
-            'window_start': window.start.to_rfc3339(),  # rfc3339 is an iso formater 
-            'window_end': window.end.to_rfc3339()       
+            'window_start': None,  
+            'window_end': None      
         }
 
     def pane_analzyer(self, pane_info: beam.DoFn.PaneInfoParam) -> dict:
@@ -160,7 +162,7 @@ class BusinessRulesDoFn(beam.DoFn):
         # Beam uses this trigger to determine when to emit/fire panes.
         # We use the pane_info additional param in our DoFn to inspect pane firing.
         timing = "N/A"
-        # TODO - complete this method  
+        # TODO - complete this method 
         return {'trigger': timing}  # early, on time (watermark) or late            
 
     def process(self, 
@@ -188,13 +190,18 @@ class TaxiStatsTransform(beam.PTransform):
     def expand(self, pcoll):
         
         ridedata: PCollection[dict] = pcoll |"parse json strings">> beam.Map(json.loads)
+        # TASK 1 : Write a DoFn "CreateTaxiPoint"
         schema: PCollection[TaxiPoint] = ridedata | "apply schemas" >> beam.ParDo(
             CreateTaxiPoint()).with_output_types(TaxiPoint)
+        # TASK 2 : Write a DoFn "AddTimestampDoFn"
         tstamp: PCollection[TaxiPoint] = schema | "timestamping" >> beam.ParDo(
             AddTimestampDoFn())
+        #  TASK 3 : Write a PTransform "AddKeysToTaxiRides"
         key: PCollection[tuple(str,TaxiPoint)] = tstamp | "key" >> AddKeysToTaxiRides()
+        #  TASK 4 : Write a PTransform "TaxiSessioning"
         win: PCollection[tuple(str,TaxiPoint)] = key | "sessions" >> TaxiSessioning()
         grp: PCollection[tuple(str,list(TaxiPoint))] = win | "group">> beam.GroupByKey()
+        # TASK 5 : Write a DoFn "BusinessRulesDoFn" for taxi ride statistics
         stats: PCollection[dict] = grp | "stats" >> beam.ParDo(BusinessRulesDoFn())
         return stats
 
