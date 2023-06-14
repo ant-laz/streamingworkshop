@@ -71,7 +71,8 @@ beam.coders.registry.register_coder(TaxiPoint, beam.coders.RowCoder)
 class CreateTaxiPoint(beam.DoFn):
 
     def process(self, element):
-        yield TaxiPoint(**element)
+        #TODO - complete this DoFn
+        pass
 
 ########################################################################################
 # TASK 2 : Write a DoFn "AddTimestampDoFn"
@@ -189,13 +190,18 @@ class TaxiStatsTransform(beam.PTransform):
     def expand(self, pcoll):
         
         ridedata: PCollection[dict] = pcoll |"parse json strings">> beam.Map(json.loads)
+        # TASK 1 : Write a DoFn "CreateTaxiPoint"
         schema: PCollection[TaxiPoint] = ridedata | "apply schemas" >> beam.ParDo(
             CreateTaxiPoint()).with_output_types(TaxiPoint)
+        # TASK 2 : Write a DoFn "AddTimestampDoFn"
         tstamp: PCollection[TaxiPoint] = schema | "timestamping" >> beam.ParDo(
             AddTimestampDoFn())
+        #  TASK 3 : Write a PTransform "AddKeysToTaxiRides"
         key: PCollection[tuple(str,TaxiPoint)] = tstamp | "key" >> AddKeysToTaxiRides()
+        #  TASK 4 : Write a PTransform "TaxiSessioning"
         win: PCollection[tuple(str,TaxiPoint)] = key | "sessions" >> TaxiSessioning()
         grp: PCollection[tuple(str,list(TaxiPoint))] = win | "group">> beam.GroupByKey()
+        # TASK 5 : Write a DoFn "BusinessRulesDoFn" for taxi ride statistics
         stats: PCollection[dict] = grp | "stats" >> beam.ParDo(BusinessRulesDoFn())
         return stats
 
